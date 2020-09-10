@@ -1,0 +1,62 @@
+# in R on server; run in DADA2 v 1.14.1
+# using previously merged (forward and reverse read) fastqs as posted to SRA
+
+library(dada2); packageVersion("dada2")
+setwd("~/DC_review/shulse_dada2”)
+path <- "~/DC_review/shulse_dada2”
+reads <- sort(list.files(path,pattern=".fastq",full.names=TRUE))
+sample.names <- reads
+pdf("~/DC_review/shulse_dada2/mergedread_quality.pdf")
+plotQualityProfile(reads[1:12])
+dev.off()
+filt_reads <- file.path(path, "filtered", paste0(sample.names, "_filt.fastq.gz"))
+names(filt_reads) <- sample.names
+filtered_out <- filterAndTrim(reads, filt_reads, truncLen=c(245),maxN=0, maxEE=c(4), truncQ=8, rm.phix=TRUE, compress=TRUE,multithread=TRUE)
+write.table(filtered_out, "filtered_out.txt")
+err <- learnErrors(filt_reads, nbases=3e+08, multithread=TRUE)
+pdf("~/DC_review/shulse_dada2/err_mergedreads.pdf")
+plotErrors(err, nominalQ=TRUE)
+dev.off()
+derep_reads <- derepFastq(filt_reads, verbose=TRUE)
+names(derep_reads) <- sample.names
+dada_reads <- dada(derep_reads, err=err, pool="pseudo")
+seqtab <- makeSequenceTable(dada_reads)
+seqtab.nochim <- removeBimeraDenovo(seqtab, verbose=T)
+sum(seqtab.nochim)/sum(seqtab)
+getN <- function(x) sum(getUniques(x))
+track <- cbind(filtered_out, sapply(dada_reads, getN), rowSums(seqtab.nochim))
+colnames(track) <- c("input", "filtered", "denoised", "nonchim")
+rownames(track) <- sample.names
+head(track)
+write.table(track, "track_seqnumbers.tsv",sep="\t")
+taxa <- assignTaxonomy(seqtab.nochim, "~/DC_review/shulse_dada2/silva_nr_v138_train_set.fa.gz", tryRC=T)
+taxa.plus <- addSpecies(taxa,"~/DC_review/shulse_dada2/silva_species_assignment_v138.fa.gz", verbose=TRUE)
+unname(taxa.plus)
+asv_seqs <- colnames(seqtab.nochim)
+asv_headers <- vector(dim(seqtab.nochim)[2], mode="character")
+for (i in 1:dim(seqtab.nochim)[2]) {
+ asv_headers[i] <- paste(">ASV", i, sep="_")
+ }
+asv_fasta <- c(rbind(asv_headers, asv_seqs))
+write.table(asv_fasta,"shulse_realaysis_July20_ASVs.fasta", sep="\t",quote=F, col.names=NA)
+asv_tab <- t(seqtab.nochim)
+row.names(asv_tab) <- sub(">", "", asv_headers)
+write.table(asv_tab,"shulse_reanalysis_July20_ASVs_counts.tsv",sep="\t", quote=F, col.names=NA) 
+asv_tax <- taxa.plus
+row.names(asv_tax) <- sub(">", "", asv_headers)
+write.table(asv_tax,"shulse_reanalysis_July20_ASVs_tax.tsv", sep="\t", quote=F, col.names=NA)
+
+
+#for SI Figure 1 only, samples were randomly subsampled to 12,900 sequences per sample using R package vegan 2.5-6 in RStudio
+
+library("vegan")
+setwd("~/Desktop/vegan")
+A01all_unnorm_to_flip <- read.table("~/Desktop/vegan/shulse_all_tonorm.csv",sep=",", header=TRUE, row.names=1)
+View(A01all_unnorm_to_flip)
+A01all_unnorm <- t(A01all_unnorm_to_flip)View(A01all_unnorm)
+A01all_norm <- matrix(nrow=38,ncol=78327)
+A01all_norm <- rrarefy(A01all_unnorm,12900)
+View(A01all_norm)
+A01all_norm_flip <- t(A01all_norm)
+View(A01all_norm_flip)
+write.table(A01all_norm_flip,"~/Desktop/vegan/shulse_all_SIFig1_norm12900.csv",sep=",")
