@@ -1,0 +1,6 @@
+# run in mothur v1.42.3 for Mac
+# repeated for each dataset
+
+align.seqs(fasta=NAME_fasta.txt, reference=silva.nr_v138. align,processors=3, flip=t)
+
+classify.seqs(fasta=current, template=silva.nr_v138.align, taxonomy=silva.nr_v138.tax)
