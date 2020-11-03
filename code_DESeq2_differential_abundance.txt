@@ -1,0 +1,52 @@
+# eastern vs western nodules comparison
+# in RStudio and DESeq2 v1.26.0
+
+library(DESeq2)
+cts <- as.matrix(read.csv("~/Desktop/vegan/nodulesEvW_counts.csv", sep=",", row.names=1))
+cts
+coldata <- read.csv("~/Desktop/vegan/nodulesEvW_condition.csv",sep=",",row.names=1)
+coldata
+dds <- DESeqDataSetFromMatrix(countData = cts, colData = coldata, design = ~ condition)
+dds
+
+# defining conditions to contrast - should therefore be log2(east/west)
+dds$condition <- factor(dds$condition, levels = c(“west”, “east"))
+
+dds <- DESeq(dds)
+res <- results(dds, alpha=0.05, pAdjustMethod=“BH”)
+res
+summary(res)
+
+write.csv(as.data.frame(res),file="~/Desktop/vegan/nodules_run2_EvW_results.csv")
+
+
+
+# habitat comparison
+# in RStudio and DESeq2 v1.26.0
+# first run failed from too many zero cells, so added +1 to every cell as suggested by DESeq2 vignettes
+
+library(DESeq2)
+cts <- as.matrix(read.csv("~/Desktop/vegan/habitat_countp1.csv", sep=",", row.names=1))
+cts
+coldata <- read.csv("~/Desktop/vegan/habitat_condition.csv",sep=",",row.names=1)
+coldata
+dds <- DESeqDataSetFromMatrix(countData = cts, colData = coldata, design = ~ condition)
+dds
+
+dds <- DESeq(dds)
+
+#so runs math as sediment vs water, ie sediment/water
+res1 <- results(dds, contrast=c(“condition”,“sediment”,”water”),alpha=0.05, pAdjustMethod=“BH”)
+res1
+summary(res1)
+write.csv(as.data.frame(res1),file="~/Desktop/vegan/habitat_sedVwater_results.csv")
+
+res2 <- results(dds, contrast=c(“condition”,“nodule”,”water”),alpha=0.05, pAdjustMethod=“BH”)
+res2
+summary(res2)
+write.csv(as.data.frame(res2),file="~/Desktop/vegan/habitat_noduleVwater_results.csv")
+
+res3 <- results(dds, contrast=c(“condition”,“nodule”,”sediment”),alpha=0.05, pAdjustMethod=“BH”)
+res3
+summary(res3)
+write.csv(as.data.frame(res3),file="~/Desktop/vegan/habitat_noduleVsed_results.csv")
